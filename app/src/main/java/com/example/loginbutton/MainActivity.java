@@ -1,6 +1,9 @@
 package com.example.loginbutton;
 
-import androidx.annotation.Nullable;
+import androidx.activity.result.ActivityResult;
+import androidx.activity.result.ActivityResultCallback;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.app.Dialog;
@@ -31,14 +34,12 @@ import java.util.Objects;
 
 public class MainActivity extends AppCompatActivity {
 
-    private static final int REQUEST_CODE_SPEECH_INPUT = 22;
     private MaterialButton main_BTN;
     private TextInputEditText editText;
     private Dialog chargeDialog, micDialog;
     private TextView popup_text;
     private ImageView mic;
     private TextView mic_answer,mic_error,popup_error,login_error;
-    ;
     private SensorManager mySensorManager;
     private Sensor lightSensor;
     private boolean isDark = false;
@@ -96,7 +97,7 @@ public class MainActivity extends AppCompatActivity {
         batteryStatus = MainActivity.this.registerReceiver(null, ifilter);
         int status = batteryStatus.getIntExtra(BatteryManager.EXTRA_STATUS, -1);
         Log.d("ccc","bat status "+ status);
-        boolean isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING;
+        boolean isCharging = (status == BatteryManager.BATTERY_STATUS_CHARGING || status == BatteryManager.BATTERY_STATUS_FULL);
         if (isCharging) {
             popup_error.setVisibility(View.GONE);
             chargeDialog.dismiss();
@@ -126,7 +127,7 @@ public class MainActivity extends AppCompatActivity {
                 intent.putExtra(RecognizerIntent.EXTRA_PROMPT, "Speak to text");
 
                 try {
-                    startActivityForResult(intent, REQUEST_CODE_SPEECH_INPUT);
+                    recordActivityResultLauncher.launch(intent);
                 } catch (Exception e) {
                     Toast.makeText(MainActivity.this, " " + e.getMessage(),
                             Toast.LENGTH_SHORT).show();
@@ -153,19 +154,21 @@ public class MainActivity extends AppCompatActivity {
         micDialog.show();
     }
 
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode,
-                                    @Nullable Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == REQUEST_CODE_SPEECH_INPUT) {
-            if (resultCode == RESULT_OK && data != null) {
-                ArrayList<String> result = data.getStringArrayListExtra(
-                        RecognizerIntent.EXTRA_RESULTS);
-                mic_answer.setText(
-                        Objects.requireNonNull(result).get(0));
-            }
-        }
-    }
+    ActivityResultLauncher<Intent> recordActivityResultLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            new ActivityResultCallback<ActivityResult>() {
+                @Override
+                public void onActivityResult(ActivityResult result) {
+                        Intent data = result.getData();
+                        if (result.getResultCode() == RESULT_OK && data != null) {
+                            ArrayList<String> results = data.getStringArrayListExtra(
+                                    RecognizerIntent.EXTRA_RESULTS);
+                            mic_answer.setText(
+                                    Objects.requireNonNull(results).get(0));
+                        }
+                    }
+            });
+
 
     private final SensorEventListener lightSensorListener
             = new SensorEventListener() {
